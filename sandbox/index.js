@@ -86,13 +86,12 @@ if (BABYLON.Engine.isSupported()) {
         engine.resize();
     });
 
-    var sceneLoaded = function(sceneFile, babylonScene) {
-        engine.clearInternalTexturesCache();
-
+    var anyLoaded = function(babylonScene, playFirstAnimationGroup) {
         // Clear dropdown that contains animation names
         dropdownContent.innerHTML = "";
         animationBar.style.display = "none";
         currentGroup = null;
+        babylonScene.skipFrustumClipping = true;
 
         if (babylonScene.animationGroups.length > 0) {
             animationBar.style.display = "flex";
@@ -100,8 +99,8 @@ if (BABYLON.Engine.isSupported()) {
                 var group = babylonScene.animationGroups[index];
                 createDropdownLink(group, index);
             }
-            currentGroup = babylonScene.animationGroups[0];
-            currentGroupIndex = 0;
+            currentGroupIndex = playFirstAnimationGroup ? 0 : babylonScene.animationGroups.length - 1;
+            currentGroup = babylonScene.animationGroups[currentGroupIndex];
             currentGroup.play(true);
         }
 
@@ -120,14 +119,30 @@ if (BABYLON.Engine.isSupported()) {
 
         // Clear the error
         errorZone.style.display = 'none';
+    }
+
+    var assetContainerLoaded = function (sceneFile, babylonScene) {
+        anyLoaded(babylonScene);
+    }
+
+    var sceneLoaded = function (sceneFile, babylonScene) {
+        engine.clearInternalTexturesCache();
+
+        anyLoaded(babylonScene, true);
+
+        // Fix for IE, otherwise it will change the default filter for files selection after first use
+        htmlInput.value = "";
+
+        currentScene = babylonScene;
+
+        babylonScene.onAnimationFileImportedObservable.add(function (scene) {
+            anyLoaded(scene, false);
+        });
+
+        document.title = "Babylon.js - " + sceneFile.name;
 
         btnInspector.classList.remove("hidden");
         btnEnvironment.classList.remove("hidden");
-
-        currentScene = babylonScene;
-        document.title = "Babylon.js - " + sceneFile.name;
-        // Fix for IE, otherwise it will change the default filter for files selection after first use
-        htmlInput.value = "";
 
         // Attach camera to canvas inputs
         if (!currentScene.activeCamera || currentScene.lights.length === 0) {
@@ -150,8 +165,11 @@ if (BABYLON.Engine.isSupported()) {
                 framingBehavior.elevationReturnTime = -1;
 
                 if (currentScene.meshes.length) {
-                    var worldExtends = currentScene.getWorldExtends();
                     currentScene.activeCamera.lowerRadiusLimit = null;
+
+                    var worldExtends = currentScene.getWorldExtends(function (mesh) {
+                        return mesh.isVisible && mesh.isEnabled();
+                    });
                     framingBehavior.zoomOnBoundingInfo(worldExtends.min, worldExtends.max);
                 }
             }
@@ -168,7 +186,7 @@ if (BABYLON.Engine.isSupported()) {
         // Lighting
         if (currentPluginName === "gltf") {
             if (!currentScene.environmentTexture) {
-                currentScene.environmentTexture = BABYLON.CubeTexture.CreateFromPrefilteredData(skyboxPath, currentScene);
+                currentScene.environmentTexture = loadSkyboxPathTexture(skyboxPath, currentScene);
             }
 
             currentSkybox = currentScene.createDefaultSkybox(currentScene.environmentTexture, true, (currentScene.activeCamera.maxZ - currentScene.activeCamera.minZ) / 2, 0.3, false);
@@ -184,7 +202,7 @@ if (BABYLON.Engine.isSupported()) {
 
             if (pbrPresent) {
                 if (!currentScene.environmentTexture) {
-                    currentScene.environmentTexture = BABYLON.CubeTexture.CreateFromPrefilteredData(skyboxPath, currentScene);
+                    currentScene.environmentTexture = loadSkyboxPathTexture(skyboxPath, currentScene);
                 }
             }
             else {
@@ -268,7 +286,9 @@ if (BABYLON.Engine.isSupported()) {
         filesInput = new BABYLON.FilesInput(engine, null, sceneLoaded, null, null, null, startProcessingFiles, null, sceneError);
         filesInput.onProcessFileCallback = (function(file, name, extension) {
             if (filesInput._filesToLoad && filesInput._filesToLoad.length === 1 && extension) {
-                if (extension.toLowerCase() === "dds" || extension.toLowerCase() === "env") {
+                if (extension.toLowerCase() === "dds" ||
+                    extension.toLowerCase() === "env" ||
+                    extension.toLowerCase() === "hdr") {
                     BABYLON.FilesInput.FilesToLoad[name] = file;
                     skyboxPath = "file:" + file.correctName;
                     return false;

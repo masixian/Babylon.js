@@ -1,6 +1,6 @@
 import { Nullable } from "babylonjs/types";
 import { Observable } from "babylonjs/Misc/observable";
-import { Vector3 } from "babylonjs/Maths/math";
+import { Vector3 } from "babylonjs/Maths/math.vector";
 import { PointerEventTypes } from "babylonjs/Events/pointerEvents";
 import { TransformNode } from "babylonjs/Meshes/transformNode";
 import { AbstractMesh } from "babylonjs/Meshes/abstractMesh";
@@ -414,7 +414,7 @@ export class Control3D implements IDisposable, IBehaviorAware<Control3D> {
             return true;
         }
 
-        if (type === PointerEventTypes.POINTERUP) {
+        if (type === PointerEventTypes.POINTERUP || type === PointerEventTypes.POINTERDOUBLETAP) {
             if (this._host._lastControlDown[pointerId]) {
                 this._host._lastControlDown[pointerId]._onPointerUp(this, pickedPoint, pointerId, buttonIndex, true);
             }

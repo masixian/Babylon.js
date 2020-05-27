@@ -1,4 +1,4 @@
-import { Vector2 } from "babylonjs/Maths/math";
+import { Vector2 } from "babylonjs/Maths/math.vector";
 import { BaseSlider } from "./baseSlider";
 import { Control } from "../control";
 import { Image } from "../image";
@@ -8,53 +8,102 @@ import { Measure } from "../../measure";
  * Class used to create slider controls
  */
 export class ImageScrollBar extends BaseSlider {
+    private _backgroundBaseImage: Image;
     private _backgroundImage: Image;
     private _thumbImage: Image;
+    private _thumbBaseImage: Image;
     private _thumbLength: number = 0.5;
     private _thumbHeight: number = 1;
     private _barImageHeight: number = 1;
     private _tempMeasure = new Measure(0, 0, 0, 0);
 
+    /** Number of 90° rotation to apply on the images when in vertical mode */
+    public num90RotationInVerticalMode = 1;
+
     /**
-     * Gets or sets the image used to render the background
+     * Gets or sets the image used to render the background for horizontal bar
      */
     public get backgroundImage(): Image {
-        return this._backgroundImage;
+        return this._backgroundBaseImage;
     }
 
     public set backgroundImage(value: Image) {
-        if (this._backgroundImage === value) {
+        if (this._backgroundBaseImage === value) {
             return;
         }
 
-        this._backgroundImage = value;
+        this._backgroundBaseImage = value;
 
-        if (value && !value.isLoaded) {
-            value.onImageLoadedObservable.addOnce(() => this._markAsDirty());
+        if (this.isVertical && this.num90RotationInVerticalMode !== 0) {
+            if (!value.isLoaded) {
+                value.onImageLoadedObservable.addOnce(() => {
+                    const rotatedValue = value._rotate90(this.num90RotationInVerticalMode, true);
+                    this._backgroundImage = rotatedValue;
+                    if (!rotatedValue.isLoaded) {
+                        rotatedValue.onImageLoadedObservable.addOnce(() => {
+                            this._markAsDirty();
+                        });
+                    }
+                    this._markAsDirty();
+                });
+            } else {
+                this._backgroundImage = value._rotate90(this.num90RotationInVerticalMode, true);
+                this._markAsDirty();
+            }
         }
+        else {
+            this._backgroundImage = value;
+            if (value && !value.isLoaded) {
+                value.onImageLoadedObservable.addOnce(() => {
+                    this._markAsDirty();
+                });
+            }
 
-        this._markAsDirty();
+            this._markAsDirty();
+        }
     }
 
     /**
      * Gets or sets the image used to render the thumb
      */
     public get thumbImage(): Image {
-        return this._thumbImage;
+        return this._thumbBaseImage;
     }
 
     public set thumbImage(value: Image) {
-        if (this._thumbImage === value) {
+        if (this._thumbBaseImage === value) {
             return;
         }
 
-        this._thumbImage = value;
+        this._thumbBaseImage = value;
 
-        if (value && !value.isLoaded) {
-            value.onImageLoadedObservable.addOnce(() => this._markAsDirty());
+        if (this.isVertical && this.num90RotationInVerticalMode !== 0) {
+            if (!value.isLoaded) {
+                value.onImageLoadedObservable.addOnce(() => {
+                    var rotatedValue = value._rotate90(-this.num90RotationInVerticalMode, true);
+                    this._thumbImage = rotatedValue;
+                    if (!rotatedValue.isLoaded) {
+                        rotatedValue.onImageLoadedObservable.addOnce(() => {
+                            this._markAsDirty();
+                        });
+                    }
+                    this._markAsDirty();
+                });
+            } else {
+                this._thumbImage = value._rotate90(-this.num90RotationInVerticalMode, true);
+                this._markAsDirty();
+            }
         }
+        else {
+            this._thumbImage = value;
+            if (value && !value.isLoaded) {
+                value.onImageLoadedObservable.addOnce(() => {
+                    this._markAsDirty();
+                });
+            }
 
-        this._markAsDirty();
+            this._markAsDirty();
+        }
     }
 
     /**
@@ -143,21 +192,21 @@ export class ImageScrollBar extends BaseSlider {
         var width = this._renderWidth;
         var height = this._renderHeight;
 
-       // Background
-       if (this._backgroundImage) {
-        this._tempMeasure.copyFromFloats(left, top, width, height);
-        if (this.isVertical) {
-            this._tempMeasure.copyFromFloats(left + width * (1 - this._barImageHeight) * 0.5, this._currentMeasure.top, width * this._barImageHeight, height);
-            this._tempMeasure.height += this._effectiveThumbThickness;
-            this._backgroundImage._currentMeasure.copyFrom(this._tempMeasure);
+        // Background
+        if (this._backgroundImage) {
+            this._tempMeasure.copyFromFloats(left, top, width, height);
+            if (this.isVertical) {
+                this._tempMeasure.copyFromFloats(left + width * (1 - this._barImageHeight) * 0.5, this._currentMeasure.top, width * this._barImageHeight, height);
+                this._tempMeasure.height += this._effectiveThumbThickness;
+                this._backgroundImage._currentMeasure.copyFrom(this._tempMeasure);
+            }
+            else {
+                this._tempMeasure.copyFromFloats(this._currentMeasure.left, top + height * (1 - this._barImageHeight) * 0.5, width, height * this._barImageHeight);
+                this._tempMeasure.width += this._effectiveThumbThickness;
+                this._backgroundImage._currentMeasure.copyFrom(this._tempMeasure);
+            }
+            this._backgroundImage._draw(context);
         }
-        else {
-            this._tempMeasure.copyFromFloats(this._currentMeasure.left, top + height * (1 - this._barImageHeight) * 0.5, width, height * this._barImageHeight);
-            this._tempMeasure.width += this._effectiveThumbThickness;
-            this._backgroundImage._currentMeasure.copyFrom(this._tempMeasure);
-        }
-        this._backgroundImage._draw(context);
-    }
 
         // Thumb
         if (this.isVertical) {
@@ -167,8 +216,10 @@ export class ImageScrollBar extends BaseSlider {
             this._tempMeasure.copyFromFloats(this._currentMeasure.left + thumbPosition, this._currentMeasure.top + this._currentMeasure.height * (1 - this._thumbHeight) * 0.5, this._effectiveThumbThickness, this._currentMeasure.height * this._thumbHeight);
         }
 
-        this._thumbImage._currentMeasure.copyFrom(this._tempMeasure);
-        this._thumbImage._draw(context);
+        if (this._thumbImage) {
+            this._thumbImage._currentMeasure.copyFrom(this._tempMeasure);
+            this._thumbImage._draw(context);
+        }
 
         context.restore();
     }

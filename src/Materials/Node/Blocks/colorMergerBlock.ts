@@ -14,7 +14,7 @@ export class ColorMergerBlock extends NodeMaterialBlock {
      * @param name defines the block name
      */
     public constructor(name: string) {
-        super(name, NodeMaterialBlockTargets.Fragment);
+        super(name, NodeMaterialBlockTargets.Neutral);
 
         this.registerInput("rgb ", NodeMaterialBlockConnectionPointTypes.Color3, true);
         this.registerInput("r", NodeMaterialBlockConnectionPointTypes.Float, true);
@@ -85,7 +85,7 @@ export class ColorMergerBlock extends NodeMaterialBlock {
 
     /**
      * Gets the rgb component (output)
-     * @deprecated Please use rgbOut instead
+     * @deprecated Please use rgbOut instead.
      */
     public get rgb(): NodeMaterialConnectionPoint {
         return this.rgbOut;

@@ -22,6 +22,7 @@ export class CannonJSPlugin implements IPhysicsEnginePlugin {
     private _cannonRaycastResult: any;
     private _raycastResult: PhysicsRaycastResult;
     private _physicsBodysToRemoveAfterStep = new Array<any>();
+    private _firstFrame = true;
     //See https://github.com/schteppe/CANNON.js/blob/gh-pages/demos/collisionFilter.html
     public BJSCANNON: any;
 
@@ -53,8 +54,17 @@ export class CannonJSPlugin implements IPhysicsEnginePlugin {
         return this._fixedTimeStep;
     }
 
-    public executeStep(delta: number): void {
-        this.world.step(this._fixedTimeStep, this._useDeltaForWorldStep ? delta : 0, 3);
+    public executeStep(delta: number, impostors: Array<PhysicsImpostor>): void {
+        // due to cannon's architecture, the first frame's before-step is skipped.
+        if (this._firstFrame) {
+            this._firstFrame = false;
+            for (const impostor of impostors) {
+                if (!(impostor.type == PhysicsImpostor.HeightmapImpostor || impostor.type === PhysicsImpostor.PlaneImpostor)) {
+                    impostor.beforeStep();
+                }
+            }
+        }
+        this.world.step(this._useDeltaForWorldStep ? delta : this._fixedTimeStep);
         this._removeMarkedPhysicsBodiesFromWorld();
     }
 
@@ -155,7 +165,7 @@ export class CannonJSPlugin implements IPhysicsEnginePlugin {
                 if (childImpostor) {
                     var parent = childImpostor.parent;
                     if (parent !== mainImpostor) {
-                        var pPosition = mesh.getAbsolutePosition().subtract(mainImpostor.object.getAbsolutePosition());
+                        var pPosition = mesh.position.clone();
                         let localRotation = mesh.rotationQuaternion.multiply(Quaternion.Inverse(currentRotation));
                         if (childImpostor.physicsBody) {
                             this.removePhysicsBody(childImpostor);
@@ -598,18 +608,6 @@ export class CannonJSPlugin implements IPhysicsEnginePlugin {
     public updateDistanceJoint(joint: PhysicsJoint, maxDistance: number) {
         joint.physicsJoint.distance = maxDistance;
     }
-
-    // private enableMotor(joint: IMotorEnabledJoint, motorIndex?: number) {
-    //     if (!motorIndex) {
-    //         joint.physicsJoint.enableMotor();
-    //     }
-    // }
-
-    // private disableMotor(joint: IMotorEnabledJoint, motorIndex?: number) {
-    //     if (!motorIndex) {
-    //         joint.physicsJoint.disableMotor();
-    //     }
-    // }
 
     public setMotor(joint: IMotorEnabledJoint, speed?: number, maxForce?: number, motorIndex?: number) {
         if (!motorIndex) {

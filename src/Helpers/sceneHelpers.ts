@@ -18,7 +18,7 @@ import "../Materials/Textures/Loaders/ddsTextureLoader";
 import "../Materials/Textures/Loaders/envTextureLoader";
 import "../Materials/Textures/Loaders/ktxTextureLoader";
 import "../Meshes/Builders/boxBuilder";
-import { WebXRDefaultExperience, WebXRDefaultExperienceOptions } from '../Cameras/XR/webXRDefaultExperience';
+import { WebXRDefaultExperience, WebXRDefaultExperienceOptions } from '../XR/webXRDefaultExperience';
 
 /** @hidden */
 export var _forceSceneHelpersToBundle = true;
@@ -115,7 +115,7 @@ Scene.prototype.createDefaultCamera = function(createArcRotateCamera = false, re
 
     // Camera
     if (!this.activeCamera) {
-        var worldExtends = this.getWorldExtends();
+        var worldExtends = this.getWorldExtends((mesh) => mesh.isVisible && mesh.isEnabled());
         var worldSize = worldExtends.max.subtract(worldExtends.min);
         var worldCenter = worldExtends.min.add(worldSize.scale(0.5));
 
@@ -208,7 +208,7 @@ Scene.prototype.createDefaultVRExperience = function(webVROptions: VRExperienceH
     return new VRExperienceHelper(this, webVROptions);
 };
 
-Scene.prototype.createDefaultXRExperienceAsync = function(options: WebXRDefaultExperienceOptions): Promise<WebXRDefaultExperience> {
+Scene.prototype.createDefaultXRExperienceAsync = function(options: WebXRDefaultExperienceOptions = {}): Promise<WebXRDefaultExperience> {
     return WebXRDefaultExperience.CreateAsync(this, options).then((helper) => {
         return helper;
     });
